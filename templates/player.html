@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>📱 ИГРИЩЕ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #a78bfa;
+            --bg-mid: #c084fc;
+            --bg-end: #f9a8d4;
+            --card-bg: rgba(255, 255, 255, 0.55);
+            --card-border: rgba(255, 255, 255, 0.5);
+            --text: #2d1b69;
+            --accent: #7c3aed;
+            --accent2: #f472b6;
+            --green: #22c55e;
+            --red: #ef4444;
+            --orange: #f59e0b;
+            --shadow: 0 8px 40px rgba(124, 58, 237, 0.2);
+            --glow: 0 0 30px rgba(244, 114, 182, 0.3);
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-mid) 40%, var(--bg-end) 100%);
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            width: 300px; height: 300px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%; filter: blur(80px);
+            top: -50px; right: -50px;
+            animation: float1 8s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 250px; height: 250px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 50%; filter: blur(60px);
+            bottom: -30px; left: -30px;
+            animation: float2 10s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        @keyframes float1 {
+            0%, 100% { transform: translate(0,0) scale(1); }
+            50% { transform: translate(-30px, 40px) scale(1.2); }
+        }
+
+        @keyframes float2 {
+            0%, 100% { transform: translate(0,0) scale(1); }
+            50% { transform: translate(40px, -20px) scale(1.15); }
+        }
+
+        .container {
+            position: relative; z-index: 1;
+            width: 100%; max-width: 400px;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(30px) saturate(200%);
+            -webkit-backdrop-filter: blur(30px) saturate(200%);
+            border: 2px solid var(--card-border);
+            border-radius: 32px;
+            padding: 36px 24px;
+            box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.8);
+            animation: cardIn 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+            transition: all 0.3s ease;
+        }
+
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(40px) scale(0.92); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .logo {
+            font-size: 48px; font-weight: 900; text-align: center;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px; margin-bottom: 28px;
+            filter: drop-shadow(0 2px 8px rgba(124, 58, 237, 0.4));
+            animation: logoGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes logoGlow {
+            0%, 100% { filter: drop-shadow(0 2px 8px rgba(124, 58, 237, 0.4)); }
+            50% { filter: drop-shadow(0 4px 20px rgba(244, 114, 182, 0.6)); }
+        }
+
+        .input-group { margin-bottom: 18px; }
+
+        .input-label {
+            font-size: 13px; font-weight: 700;
+            color: var(--text); opacity: 0.6;
+            margin-bottom: 8px; letter-spacing: 2px;
+            text-transform: uppercase; padding-left: 4px;
+        }
+
+        .glass-input {
+            width: 100%; padding: 18px 22px;
+            font-family: 'Nunito', sans-serif; font-weight: 800;
+            font-size: 22px;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.6);
+            border-radius: 20px;
+            color: var(--text); text-align: center; outline: none;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.03);
+        }
+
+        .glass-input:focus {
+            border-color: var(--accent);
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 0 0 6px rgba(124, 58, 237, 0.12), var(--glow);
+            transform: scale(1.02);
+        }
+
+        .glass-input::placeholder { color: rgba(45, 27, 105, 0.25); letter-spacing: 3px; }
+        #codeInput { letter-spacing: 10px; text-transform: uppercase; font-size: 26px; }
+
+        .btn {
+            width: 100%; padding: 18px;
+            font-family: 'Nunito', sans-serif; font-weight: 900;
+            font-size: 22px; letter-spacing: 2px;
+            border: none; border-radius: 50px; cursor: pointer;
+            color: white;
+            background: linear-gradient(135deg, var(--accent), #a855f7, var(--accent2));
+            box-shadow: 0 8px 32px rgba(124, 58, 237, 0.5), inset 0 2px 0 rgba(255,255,255,0.4);
+            margin-top: 12px;
+            transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+            position: relative; overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute; top: 0; left: -100%;
+            width: 200%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.6s;
+        }
+
+        .btn:active { transform: scale(0.94); box-shadow: 0 4px 20px rgba(124, 58, 237, 0.7); }
+        .btn:active::after { left: 100%; }
+
+        /* Экран игры */
+        .player-header { text-align: center; margin-bottom: 20px; }
+        .player-name { font-size: 28px; font-weight: 900; color: var(--text); }
+
+        .score-label {
+            font-size: 12px; font-weight: 700; opacity: 0.5;
+            letter-spacing: 3px; text-transform: uppercase; margin-top: 4px;
+        }
+
+        .player-score {
+            font-size: 56px; font-weight: 900;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; margin: 4px 0;
+            filter: drop-shadow(0 2px 8px rgba(124, 58, 237, 0.3));
+            transition: transform 0.3s ease;
+        }
+
+        .player-score.pulse-anim {
+            animation: scorePulse 0.4s ease;
+        }
+
+        @keyframes scorePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.4); }
+            100% { transform: scale(1); }
+        }
+
+        .error-msg {
+            color: var(--red); text-align: center;
+            margin-top: 14px; font-size: 14px; font-weight: 700;
+            min-height: 22px;
+        }
+
+        /* Вопрос */
+        .question-text {
+            text-align: center; font-size: 19px; font-weight: 800;
+            margin: 14px 0; line-height: 1.5; color: var(--text);
+        }
+
+        .answers-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 10px; margin: 18px 0;
+        }
+
+        .answer-btn {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.6);
+            border-radius: 20px;
+            padding: 22px 10px;
+            font-family: 'Nunito', sans-serif; font-weight: 800;
+            font-size: 15px; cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.22, 0.61, 0.36, 1);
+            color: var(--text); text-align: center;
+            word-break: break-word;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }
+
+        .answer-btn:active {
+            border-color: var(--accent);
+            background: rgba(124, 58, 237, 0.12);
+            transform: scale(0.94);
+            box-shadow: var(--glow);
+        }
+
+        .answer-btn.answered {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(244,114,182,0.15));
+            box-shadow: var(--glow);
+            animation: pop 0.3s ease;
+        }
+
+        .answer-btn.correct-answer {
+            border-color: var(--green);
+            background: rgba(34,197,94,0.15);
+            box-shadow: 0 0 20px rgba(34,197,94,0.3);
+        }
+
+        .answer-btn.wrong-answer {
+            border-color: var(--red);
+            background: rgba(239,68,68,0.1);
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+            100% { transform: scale(1); }
+        }
+
+        .timer {
+            text-align: center; font-size: 42px; font-weight: 900;
+            background: linear-gradient(135deg, var(--accent), var(--orange));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; margin: 12px 0;
+            transition: all 0.3s;
+        }
+
+        .timer.warning {
+            background: linear-gradient(135deg, var(--red), var(--orange));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: timerPulse 0.5s ease-in-out infinite;
+        }
+
+        @keyframes timerPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.6; }
+        }
+
+        .hidden { display: none !important; }
+
+        .status-badge {
+            display: inline-block; padding: 8px 20px;
+            border-radius: 30px; font-size: 14px; font-weight: 800;
+            letter-spacing: 1px; margin-top: 10px;
+            animation: pop 0.3s ease;
+        }
+
+        .status-correct { background: rgba(34,197,94,0.2); color: #16a34a; }
+        .status-wrong { background: rgba(239,68,68,0.2); color: #dc2626; }
+        .status-sent { background: rgba(124,58,237,0.15); color: var(--accent); }
+
+        .waiting-icon {
+            font-size: 56px; display: block; margin-bottom: 12px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <!-- ВХОД -->
+        <div id="joinScreen">
+            <div class="glass-card">
+                <div class="logo">ИГРИЩЕ</div>
+                
+                <div class="input-group">
+                    <div class="input-label">Имя</div>
+                    <input class="glass-input" type="text" id="nameInput" 
+                           placeholder="Твоё имя" maxlength="15" autocomplete="off" inputmode="text">
+                </div>
+                
+                <div class="input-group">
+                    <div class="input-label">Код</div>
+                    <input class="glass-input" type="text" id="codeInput" 
+                           placeholder="ABCD" maxlength="4" autocomplete="off"
+                           autocorrect="off" autocapitalize="characters" inputmode="text">
+                </div>
+                
+                <button class="btn" onclick="joinGame()">ВОЙТИ</button>
+                <div class="error-msg" id="errorMsg"></div>
+            </div>
+        </div>
+        
+        <!-- ИГРА -->
+        <div id="gameScreen" class="hidden">
+            <div class="glass-card">
+                <div class="player-header">
+                    <div class="player-name" id="playerName">—</div>
+                    <div class="score-label">очки</div>
+                    <div class="player-score" id="scoreDisplay">0</div>
+                </div>
+                
+                <div id="questionArea" class="hidden">
+                    <div class="question-text" id="questionText"></div>
+                    <div class="timer" id="timer"></div>
+                    <div class="answers-grid" id="answersGrid"></div>
+                    <div style="text-align: center;" id="answerStatus"></div>
+                </div>
+                
+                <div id="waitingArea">
+                    <div style="text-align: center; padding: 24px 0;">
+                        <span class="waiting-icon">📺</span>
+                        <div style="opacity: 0.6; font-weight: 700;">Жди вопрос на ТВ!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        let playerId = null;
+        let roomCode = null;
+        let currentTimer = null;
+        let gameInterval = null;
+        let hasAnswered = false;
+        
+        function joinGame() {
+            const name = document.getElementById('nameInput').value.trim() || 'Игрок';
+            const code = document.getElementById('codeInput').value.toUpperCase();
+            const errorEl = document.getElementById('errorMsg');
+            
+            errorEl.textContent = '';
+            
+            if (code.length !== 4) {
+                errorEl.textContent = 'Нужен 4-буквенный код';
+                const input = document.getElementById('codeInput');
+                input.style.animation = 'none';
+                input.offsetHeight;
+                input.style.animation = 'shake 0.5s ease-in-out';
+                return;
+            }
+            
+            fetch('/api/join', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: name, code: code})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    errorEl.textContent = data.error;
+                    return;
+                }
+                
+                playerId = data.player_id;
+                roomCode = code;
+                
+                document.getElementById('joinScreen').classList.add('hidden');
+                document.getElementById('gameScreen').classList.remove('hidden');
+                document.getElementById('playerName').textContent = data.name;
+                
+                checkGameState();
+                gameInterval = setInterval(checkGameState, 1500);
+            })
+            .catch(() => {
+                errorEl.textContent = 'Сервер не отвечает';
+            });
+        }
+        
+        function checkGameState() {
+            if (!roomCode) return;
+            
+            fetch('/api/state/' + roomCode)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) return;
+                    
+                    // Обновляем очки
+                    if (data.scores && data.scores[playerId] !== undefined) {
+                        const scoreEl = document.getElementById('scoreDisplay');
+                        const newScore = data.scores[playerId];
+                        if (scoreEl.textContent !== String(newScore)) {
+                            scoreEl.textContent = newScore;
+                            scoreEl.classList.add('pulse-anim');
+                            setTimeout(() => scoreEl.classList.remove('pulse-anim'), 400);
+                        }
+                    }
+                    
+                    if (data.state === 'playing' && data.current_question) {
+                        showQuestion(data.current_question);
+                    } else if (data.state === 'finished') {
+                        // Игра окончена
+                        document.getElementById('questionArea').classList.add('hidden');
+                        document.getElementById('waitingArea').innerHTML = 
+                            '<div style="text-align:center;padding:24px 0;">' +
+                            '<span style="font-size:48px;display:block;margin-bottom:10px;">🏁</span>' +
+                            '<div style="font-weight:700;opacity:0.7;">Игра окончена!</div>' +
+                            '<div style="font-size:14px;opacity:0.5;">Смотри ТВ</div></div>';
+                        document.getElementById('waitingArea').classList.remove('hidden');
+                        clearInterval(currentTimer);
+                        clearInterval(gameInterval);
+                    } else if (data.state === 'lobby') {
+                        // Вернулись в лобби
+                        document.getElementById('questionArea').classList.add('hidden');
+                        document.getElementById('waitingArea').classList.remove('hidden');
+                        document.getElementById('waitingArea').innerHTML = 
+                            '<div style="text-align:center;padding:24px 0;">' +
+                            '<span class="waiting-icon">📺</span>' +
+                            '<div style="opacity:0.6;font-weight:700;">Жди вопрос на ТВ!</div></div>';
+                        clearInterval(currentTimer);
+                        hasAnswered = false;
+                    }
+                });
+        }
+function showQuestion(question) {
+    // Сбрасываем состояние ответа
+    hasAnswered = false;
+    document.getElementById('answerStatus').innerHTML = '';
+    
+    // Показываем вопрос
+    document.getElementById('questionArea').classList.remove('hidden');
+    document.getElementById('waitingArea').classList.add('hidden');
+    document.getElementById('questionText').textContent = question.text;
+    
+    // Обновляем кнопки ответов
+    document.getElementById('answersGrid').innerHTML = question.answers
+        .map((a, i) => `
+            <button class="answer-btn" onclick="submitAnswer(${i}, this)">
+                ${a}
+            </button>
+        `).join('');
+    
+    // Синхронизированный таймер
+    startSyncedTimer();
+}
+
+function startSyncedTimer() {
+    const timerEl = document.getElementById('timer');
+    clearInterval(currentTimer);
+    
+    function updateTimer() {
+        if (!roomCode) return;
+        
+        fetch('/api/state/' + roomCode)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.current_question) return;
+                
+                const timeLeft = data.question_time_left || 0;
+                
+                if (timeLeft <= 0) {
+                    timerEl.textContent = '⏰ Время!';
+                    timerEl.classList.add('warning');
+                } else {
+                    timerEl.textContent = '⏱ ' + timeLeft;
+                    if (timeLeft <= 5) {
+                        timerEl.classList.add('warning');
+                    } else {
+                        timerEl.classList.remove('warning');
+                    }
+                }
+            })
+            .catch(() => {});
+    }
+    
+    updateTimer();
+    currentTimer = setInterval(updateTimer, 1000);
+}
+
+        function startSyncedTimer() {
+    const timerEl = document.getElementById('timer');
+    clearInterval(currentTimer);
+    
+    // Функция запроса времени с сервера
+    function fetchTime() {
+        if (!roomCode) return;
+        
+        fetch('/api/state/' + roomCode)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.current_question) return;
+                
+                const q = data.current_question;
+                const totalTime = q.time || 30;
+                
+                // Получаем answers_count — чем больше ответов, тем меньше времени могло пройти
+                // Но мы не знаем точное время начала, поэтому используем другой подход:
+                // Сервер будет отдавать question_start_time в состоянии комнаты
+                
+                // Показываем время из question.time как максимальное
+                // Реальное время синхронизируется через server.py (добавим ниже)
+                if (data.question_time_left !== undefined) {
+                    const timeLeft = data.question_time_left;
+                    timerEl.textContent = '⏱ ' + timeLeft;
+                    if (timeLeft <= 5) timerEl.classList.add('warning');
+                    else timerEl.classList.remove('warning');
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(currentTimer);
+                        timerEl.textContent = '⏰ Время!';
+                    }
+                }
+            });
+    }
+    
+    // Запрашиваем время каждую секунду
+    fetchTime();
+    currentTimer = setInterval(fetchTime, 1000);
+}
+        
+
+
+
+        
+        function submitAnswer(answerIndex, button) {
+            if (!roomCode || !playerId || hasAnswered) return;
+            
+            hasAnswered = true;
+            
+            // Отмечаем кнопку
+            document.querySelectorAll('.answer-btn').forEach(b => {
+                b.classList.remove('answered', 'correct-answer', 'wrong-answer');
+            });
+            button.classList.add('answered');
+            
+            fetch('/api/answer', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    code: roomCode,
+                    player_id: playerId,
+                    answer: answerIndex
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.score !== undefined) {
+                    const scoreEl = document.getElementById('scoreDisplay');
+                    scoreEl.textContent = data.score;
+                    scoreEl.classList.add('pulse-anim');
+                    setTimeout(() => scoreEl.classList.remove('pulse-anim'), 400);
+                }
+                
+                if (data.correct) {
+                    button.classList.add('correct-answer');
+                    document.getElementById('answerStatus').innerHTML = 
+                        '<span class="status-badge status-correct">✅ Верно!</span>';
+                } else {
+                    button.classList.add('wrong-answer');
+                    document.getElementById('answerStatus').innerHTML = 
+                        '<span class="status-badge status-wrong">❌ Мимо</span>';
+                }
+            })
+            .catch(() => {
+                hasAnswered = false; // В случае ошибки разрешаем ответить снова
+            });
+            
+            clearInterval(currentTimer);
+            document.getElementById('timer').textContent = '✅ Отправлен';
+        }
+        
+        // Enter = отправить
+        document.getElementById('codeInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') joinGame();
+        });
+        document.getElementById('nameInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('codeInput').focus();
+        });
+        
+        document.getElementById('nameInput').focus();
+    </script>
+</body>
+</html>
