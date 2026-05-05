@@ -608,6 +608,19 @@ function updateGameState() {
                 clearTimeout(autoNextTimer);
                 autoNext();
             }
+        else if (data.game_type === 'quiz') {
+                updatePlayerStatus(data);
+                updateScores(data);
+                const total = Object.keys(data.players||{}).length;
+                const answered = data.answers_count||0;
+                    
+                // 🔒 Защита: переход только если answered > 0
+                if (total > 0 && answered > 0 && answered >= total) {
+                    clearInterval(currentTimer);
+                    clearTimeout(autoNextTimer);
+                    autoNext();
+                }
+            }
         }
     });
 }
@@ -675,11 +688,17 @@ function autoNext() {
     playAutoNext();
     clearInterval(currentTimer);
     clearTimeout(autoNextTimer);
+    lastAnswerCount = 0;  // ← уже есть, но проверь
+    
     document.getElementById('timer').textContent = '→ Дальше...';
     document.getElementById('timer').classList.add('auto-next');
+    
     setTimeout(() => {
         fetch('/api/next', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:roomCode})})
-        .then(() => { lastAnswerCount=0; document.getElementById('timer').classList.remove('auto-next'); showQuestion(); });
+        .then(() => {
+            document.getElementById('timer').classList.remove('auto-next');
+            showQuestion();
+        });
     }, 1500);
 }
 
@@ -768,23 +787,6 @@ function playLooped() {
     lobbySource.start(0);
 }
 
-function autoNext() {
-    playAutoNext();
-    clearInterval(currentTimer);
-    clearTimeout(autoNextTimer);
-    lastAnswerCount = 0;  // ← уже есть, но проверь
-    
-    document.getElementById('timer').textContent = '→ Дальше...';
-    document.getElementById('timer').classList.add('auto-next');
-    
-    setTimeout(() => {
-        fetch('/api/next', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:roomCode})})
-        .then(() => {
-            document.getElementById('timer').classList.remove('auto-next');
-            showQuestion();
-        });
-    }, 1500);
-}
 
 function stopLobbyMusic() { if (lobbySource) { try { lobbySource.stop(0); } catch(e) {} lobbySource = null; } }
 function playSound(n, v=0.5) { try { const a = new Audio('/static/sounds/'+n+'.mp3'); a.volume=v; a.play().catch(()=>{}); } catch(e) {} }
