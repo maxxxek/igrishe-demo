@@ -511,33 +511,45 @@ function updateTruthDareScreen(data) {
     document.getElementById('quiz-area').classList.add('hidden');
     document.getElementById('truthdare-area').classList.remove('hidden');
     
+    // Обновляем заголовок с раундом
+    document.getElementById('gameTitle').textContent = 
+        data.game_name + ' — Раунд ' + (data.round + 1) + '/' + data.total_rounds;
+    
+    // Обновляем счёт
+    updateTDScores(data);
+    
+    // Состояние голосования
     if (data.state === 'voting') {
         document.getElementById('voting-screen').classList.remove('hidden');
         document.getElementById('task-screen').classList.add('hidden');
         
-        document.getElementById('currentPlayerName').textContent = data.current_player_name || '...';
+        // Показываем выбранного игрока
+        document.getElementById('currentPlayerName').textContent = 
+            data.current_player_name || '...';
         
+        // Обновляем счётчики голосов
         const votes = data.votes || {};
         const truthCount = Object.values(votes).filter(v => v === 'truth').length;
         const dareCount = Object.values(votes).filter(v => v === 'dare').length;
-        
         document.getElementById('truthVotes').textContent = truthCount;
         document.getElementById('dareVotes').textContent = dareCount;
         
         // Статус игроков
         updateTDPlayersStatus(data);
-    } else if (data.state === 'task' && data.show_task) {
+    } 
+    // Состояние показа задания
+    else if (data.state === 'task' && data.show_task) {
         document.getElementById('voting-screen').classList.add('hidden');
         document.getElementById('task-screen').classList.remove('hidden');
         
-        document.getElementById('taskPlayerName').textContent = data.current_player_name;
+        document.getElementById('taskPlayerName').textContent = 
+            data.current_player_name || '';
         document.getElementById('taskText').textContent = 
-            (data.task_type === 'truth' ? '🗣 ПРАВДА: ' : '💥 ДЕЙСТВИЕ: ') + data.current_task;
+            (data.task_type === 'truth' ? '🗣 ПРАВДА: ' : '💥 ДЕЙСТВИЕ: ') + 
+            data.current_task;
         
         updateTDPlayersStatus(data);
     }
-    
-    updateTDScores(data);
 }
 
 function updateTDPlayersStatus(data) {
@@ -628,7 +640,7 @@ function showGameScreen(data) {
     document.getElementById('lobby').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
     
-    // Иконка
+    // Иконка игры
     if (data.game_icon_image) {
         document.getElementById('gameIconImg').src = data.game_icon_image;
         document.getElementById('gameIconImg').style.display = 'inline-block';
@@ -646,15 +658,15 @@ function showGameScreen(data) {
         document.getElementById('truthdare-area').classList.remove('hidden');
         document.getElementById('voting-screen').classList.remove('hidden');
         document.getElementById('task-screen').classList.add('hidden');
+        // Сразу обновляем экран
+        updateTruthDareScreen(data);
     } else if (data.game_type === 'quiz') {
         document.getElementById('truthdare-area').classList.add('hidden');
         document.getElementById('quiz-area').classList.remove('hidden');
+        showQuestion();
     }
     
     lastAnswerCount = 0;
-    if (data.game_type === 'quiz') {
-        showQuestion();
-    }
     updateInterval = setInterval(updateGameState, 1000);
 }
 
