@@ -4,6 +4,7 @@
     "description": "Объясни слово рисунком!",
     "color": "#f472b6",
     "icon": "✏️",
+    "icon_image": "/static/icons/draw.png",
     "points_per_question": 200,
     "questions": [
         {
