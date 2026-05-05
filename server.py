@@ -285,30 +285,39 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
             return
         
         elif self.path == '/api/answer':
-            code = data.get('code', '').upper()
-            pid = data.get('player_id', '')
-            answer = data.get('answer', 0)
-            
-            if code in rooms and pid in rooms[code]['players']:
-                room = rooms[code]
-                
-                # 🔒 Проверка: игрок уже отвечал на этот вопрос?
-                if pid in room['answers']:
-                    self._json({'error': 'Ты уже ответил!', 'score': room['scores'][pid]}, 400)
-                    return
-                
-                if room['game_id'] == 'quiz':
-                    q_idx = room['current_question']
-                    if 0 <= q_idx < len(room.get('questions', [])):
-                        is_correct = answer == room['questions'][q_idx]['correct']
-                        if is_correct:
-                            room['scores'][pid] += room.get('points', 100)
-                        room['answers'][pid] = answer
-                        self._json({'correct': is_correct, 'score': room['scores'][pid]})
-                        return
-            
-            self._json({'error': 'Ошибка'}, 400)
-            return
+           code = data.get('code', '').upper()
+           pid = data.get('player_id', '')
+           answer = data.get('answer', 0)
+           
+           if code in rooms and pid in rooms[code]['players']:
+               room = rooms[code]
+               
+               # Проверка: уже отвечал?
+               if pid in room['answers']:
+                   self._json({'error': 'Ты уже ответил!', 'score': room['scores'][pid]}, 400)
+                   return
+               
+               if room['game_id'] == 'quiz':
+                   q_idx = room['current_question']
+                   if 0 <= q_idx < len(room.get('questions', [])):
+                       is_correct = answer == room['questions'][q_idx]['correct']
+                       if is_correct:
+                           room['scores'][pid] += room.get('points', 100)
+                       room['answers'][pid] = answer
+                       
+                       # 🔥 ПРОВЕРКА: ВСЕ ЛИ ОТВЕТИЛИ?
+                       total_players = len(room['players'])
+                       answered_count = len(room['answers'])
+                       
+                       self._json({
+                           'correct': is_correct,
+                           'score': room['scores'][pid],
+                           'all_answered': answered_count >= total_players  # ← флаг
+                       })
+                       return
+           
+           self._json({'error': 'Ошибка'}, 400)
+           return
         
         elif self.path == '/api/next':
             code = data.get('code', '').upper()
