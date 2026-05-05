@@ -502,6 +502,8 @@ let lobbyInterval = null;
 let updateInterval = null;
 let lastAnswerCount = 0;
 let lastPlayerCount = 0;
+let autoNextLocked = false;
+
 
 // ========== ЗАГРУЗКА ИГР ==========
 fetch('/api/games')
@@ -592,34 +594,28 @@ function showGameScreen(data) {
     updateInterval = setInterval(updateGameState, 1000);
 }
 
+
 function updateGameState() {
     if (!roomCode) return;
     fetch('/api/state/' + roomCode).then(r => r.json()).then(data => {
         if (data.error) return;
-        if (data.state === 'finished') { clearInterval(updateInterval); showFinalScreen(data); return; }
-        if (data.game_type === 'truth_dare') updateTruthDareScreen(data);
-        else if (data.game_type === 'quiz') {
+        if (data.state === 'finished') { 
+            clearInterval(updateInterval); 
+            showFinalScreen(data); 
+            return; 
+        }
+        if (data.game_type === 'truth_dare') {
+            updateTruthDareScreen(data);
+        } else if (data.game_type === 'quiz') {
             updatePlayerStatus(data);
             updateScores(data);
-            const total = Object.keys(data.players||{}).length;
-            const answered = data.answers_count||0;
-            if (total > 0 && answered >= total) {
+            const total = Object.keys(data.players || {}).length;
+            const answered = data.answers_count || 0;
+            
+            if (!autoNextLocked && total > 0 && answered > 0 && answered >= total) {
                 clearInterval(currentTimer);
                 clearTimeout(autoNextTimer);
                 autoNext();
-            }
-        else if (data.game_type === 'quiz') {
-                updatePlayerStatus(data);
-                updateScores(data);
-                const total = Object.keys(data.players||{}).length;
-                const answered = data.answers_count||0;
-                    
-                // 🔒 Защита: переход только если answered > 0
-                if (total > 0 && answered > 0 && answered >= total) {
-                    clearInterval(currentTimer);
-                    clearTimeout(autoNextTimer);
-                    autoNext();
-                }
             }
         }
     });
@@ -685,18 +681,24 @@ function showQuestion() {
 }
 
 function autoNext() {
+    if (autoNextLocked) return;  // ← БЛОКИРОВКА
+    autoNextLocked = true;
+    
     playAutoNext();
     clearInterval(currentTimer);
     clearTimeout(autoNextTimer);
-    lastAnswerCount = 0;  // ← уже есть, но проверь
+    lastAnswerCount = 0;
     
-    document.getElementById('timer').textContent = '→ Дальше...';
-    document.getElementById('timer').classList.add('auto-next');
+    const timerEl = document.getElementById('timer');
+    timerEl.textContent = '→ Дальше...';
+    timerEl.classList.add('auto-next');
     
+    // Ждём 1.5 секунды перед запросом
     setTimeout(() => {
         fetch('/api/next', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:roomCode})})
         .then(() => {
-            document.getElementById('timer').classList.remove('auto-next');
+            timerEl.classList.remove('auto-next');
+            autoNextLocked = false;  // ← РАЗБЛОКИРОВКА
             showQuestion();
         });
     }, 1500);
