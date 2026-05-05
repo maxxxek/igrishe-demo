@@ -376,26 +376,58 @@
         </div>
         
         <!-- ИГРА -->
-        <div id="game-screen" class="glass-card hidden">
-            <!-- Заголовок с иконкой -->
-            <div class="game-header">
-                <img class="game-header-icon" id="gameIconImg" src="" alt="" style="display:none;">
-                <span class="game-header-emoji" id="gameIconEmoji"></span>
-                <span class="game-header-title" id="gameTitle"></span>
+<div id="game-screen" class="glass-card hidden">
+    <!-- Заголовок с иконкой -->
+    <div class="game-header">
+        <img class="game-header-icon" id="gameIconImg" src="" alt="" style="display:none;">
+        <span class="game-header-emoji" id="gameIconEmoji"></span>
+        <span class="game-header-title" id="gameTitle"></span>
+    </div>
+    
+    <!-- ====== КВИЗ ====== -->
+    <div id="quiz-area" class="hidden">
+        <div class="question-counter" id="questionCounter"></div>
+        <div class="question-text" id="questionText"></div>
+        <div class="timer" id="timer"></div>
+        <div class="answers-grid" id="answersDisplay"></div>
+        <div class="answered-count" id="answeredCount"></div>
+        <div class="players-status" id="playersStatus"></div>
+        <div class="scores-list" id="scoresDisplay"></div>
+    </div>
+    
+    <!-- ====== ПРАВДА/ДЕЙСТВИЕ ====== -->
+    <div id="truthdare-area" class="hidden">
+        <!-- Экран голосования -->
+        <div id="voting-screen">
+            <div style="text-align:center;font-size:28px;margin:20px 0;">
+                🎯 Выбран: <span id="currentPlayerName" style="color:var(--accent);font-weight:900;"></span>
             </div>
-            
-            <div class="question-counter" id="questionCounter"></div>
-            <div class="question-text" id="questionText"></div>
-            <div class="timer" id="timer"></div>
-            <div class="answers-grid" id="answersDisplay"></div>
-            
-            <!-- Статус игроков -->
-            <div class="answered-count" id="answeredCount"></div>
-            <div class="players-status" id="playersStatus"></div>
-            
-            <!-- Счёт -->
-            <div class="scores-list" id="scoresDisplay"></div>
+            <div style="text-align:center;font-size:22px;opacity:0.7;margin-bottom:30px;">
+                Голосуйте: Правда или Действие?
+            </div>
+            <div style="display:flex;gap:20px;justify-content:center;">
+                <div style="background:rgba(255,255,255,0.6);padding:30px 40px;border-radius:20px;text-align:center;font-size:24px;font-weight:900;">
+                    🗣 Правда<br><span id="truthVotes" style="font-size:48px;color:var(--accent);">0</span>
+                </div>
+                <div style="background:rgba(255,255,255,0.6);padding:30px 40px;border-radius:20px;text-align:center;font-size:24px;font-weight:900;">
+                    💥 Действие<br><span id="dareVotes" style="font-size:48px;color:var(--accent2);">0</span>
+                </div>
+            </div>
         </div>
+        
+        <!-- Экран задания -->
+        <div id="task-screen" class="hidden">
+            <div style="text-align:center;font-size:28px;margin:20px 0;">
+                <span id="taskPlayerName"></span>, твоё задание:
+            </div>
+            <div style="text-align:center;font-size:36px;font-weight:900;margin:30px 0;padding:30px;background:rgba(255,255,255,0.6);border-radius:20px;" id="taskText"></div>
+            <div style="text-align:center;font-size:20px;opacity:0.6;">Ожидаем выполнения...</div>
+            <div class="players-status" id="tdPlayersStatus"></div>
+        </div>
+        
+        <div class="scores-list" id="tdScoresDisplay"></div>
+    </div>
+</div>
         
         <!-- ФИНАЛ -->
         <div id="finish-screen" class="glass-card hidden">
@@ -442,7 +474,7 @@ fetch('/api/games')
                     <div class="game-icon-wrap">${iconHTML}</div>
                     <div class="game-name" style="color:${game.color}">${game.name}</div>
                     <div class="game-desc">${game.description}</div>
-                    <div class="game-badge">${game.questions_count} вопросов</div>
+                    <div class="game-badge">${game.questions_count} ${game.questions_count > 10 ? 'вопросов' : 'раундов'}</div>
                 </div>`;
         }).join('');
     });
@@ -452,6 +484,97 @@ function selectGame(id) {
     document.querySelectorAll('.game-card').forEach(c => c.classList.remove('selected'));
     document.querySelector(`[data-game="${id}"]`).classList.add('selected');
     document.getElementById('createRoomBtn').disabled = false;
+}
+
+// Обнови updateGameState
+function updateGameState() {
+    if (!roomCode) return;
+    fetch('/api/state/' + roomCode)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return;
+            if (data.state === 'finished') {
+                clearInterval(updateInterval);
+                showFinalScreen(data);
+                return;
+            }
+            
+            if (data.game_type === 'truth_dare') {
+                updateTruthDareScreen(data);
+            } else if (data.game_type === 'quiz') {
+                updateQuizScreen(data);
+            }
+        });
+}
+
+function updateTruthDareScreen(data) {
+    document.getElementById('quiz-area').classList.add('hidden');
+    document.getElementById('truthdare-area').classList.remove('hidden');
+    
+    if (data.state === 'voting') {
+        document.getElementById('voting-screen').classList.remove('hidden');
+        document.getElementById('task-screen').classList.add('hidden');
+        
+        document.getElementById('currentPlayerName').textContent = data.current_player_name || '...';
+        
+        const votes = data.votes || {};
+        const truthCount = Object.values(votes).filter(v => v === 'truth').length;
+        const dareCount = Object.values(votes).filter(v => v === 'dare').length;
+        
+        document.getElementById('truthVotes').textContent = truthCount;
+        document.getElementById('dareVotes').textContent = dareCount;
+        
+        // Статус игроков
+        updateTDPlayersStatus(data);
+    } else if (data.state === 'task' && data.show_task) {
+        document.getElementById('voting-screen').classList.add('hidden');
+        document.getElementById('task-screen').classList.remove('hidden');
+        
+        document.getElementById('taskPlayerName').textContent = data.current_player_name;
+        document.getElementById('taskText').textContent = 
+            (data.task_type === 'truth' ? '🗣 ПРАВДА: ' : '💥 ДЕЙСТВИЕ: ') + data.current_task;
+        
+        updateTDPlayersStatus(data);
+    }
+    
+    updateTDScores(data);
+}
+
+function updateTDPlayersStatus(data) {
+    const players = data.players || {};
+    const votes = data.votes || {};
+    const statusDiv = document.getElementById('tdPlayersStatus');
+    
+    statusDiv.innerHTML = Object.entries(players).map(([id, p]) => {
+        const isCurrent = id === data.current_player_id;
+        const voted = votes[id] || (isCurrent ? 'selected' : '');
+        
+        let status = '';
+        if (isCurrent) status = '🎯 Выбран';
+        else if (voted) status = '✅ Проголосовал';
+        else status = '⏳ Думает...';
+        
+        return `
+            <div class="player-status-card ${voted ? 'answered' : 'not-answered'}">
+                <div class="status-dot ${voted ? 'done' : 'waiting'}"></div>
+                <span>${p.name}</span>
+                <span style="font-size:12px;opacity:0.6;margin-left:8px;">${status}</span>
+            </div>`;
+    }).join('');
+}
+
+function updateTDScores(data) {
+    const scores = data.scores || {};
+    const players = data.players || {};
+    const sorted = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+    const medals = ['🥇','🥈','🥉'];
+    document.getElementById('tdScoresDisplay').innerHTML = sorted
+        .map(([id,s],i) => {
+            const p = players[id];
+            return `<div class="score-card ${i===0?'top':''}">
+                <div class="score-name">${medals[i]||'🏅'} ${p?p.name:'Игрок'}</div>
+                <div class="score-value">${s}</div></div>`;
+        }).join('');
 }
 
 function createRoom() {
@@ -505,6 +628,7 @@ function showGameScreen(data) {
     document.getElementById('lobby').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
     
+    // Иконка
     if (data.game_icon_image) {
         document.getElementById('gameIconImg').src = data.game_icon_image;
         document.getElementById('gameIconImg').style.display = 'inline-block';
@@ -516,12 +640,119 @@ function showGameScreen(data) {
     }
     document.getElementById('gameTitle').textContent = data.game_name || '';
     
+    // Показываем нужную область
+    if (data.game_type === 'truth_dare') {
+        document.getElementById('quiz-area').classList.add('hidden');
+        document.getElementById('truthdare-area').classList.remove('hidden');
+        document.getElementById('voting-screen').classList.remove('hidden');
+        document.getElementById('task-screen').classList.add('hidden');
+    } else if (data.game_type === 'quiz') {
+        document.getElementById('truthdare-area').classList.add('hidden');
+        document.getElementById('quiz-area').classList.remove('hidden');
+    }
+    
     lastAnswerCount = 0;
-    showQuestion();
+    if (data.game_type === 'quiz') {
+        showQuestion();
+    }
     updateInterval = setInterval(updateGameState, 1000);
 }
 
 function updateGameState() {
+    if (!roomCode) return;
+    fetch('/api/state/' + roomCode)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return;
+            if (data.state === 'finished') {
+                clearInterval(updateInterval);
+                showFinalScreen(data);
+                return;
+            }
+            
+            if (data.game_type === 'truth_dare') {
+                updateTruthDareScreen(data);
+            } else if (data.game_type === 'quiz') {
+                updateQuizScreen(data);
+            }
+        });
+}
+
+function updateTruthDareScreen(data) {
+    document.getElementById('quiz-area').classList.add('hidden');
+    document.getElementById('truthdare-area').classList.remove('hidden');
+    
+    // Обновляем счёт
+    updateTDScores(data);
+    
+    // Обновляем раунд
+    document.getElementById('gameTitle').textContent = 
+        data.game_name + ' — Раунд ' + (data.round + 1) + '/' + data.total_rounds;
+    
+    if (data.state === 'voting') {
+        document.getElementById('voting-screen').classList.remove('hidden');
+        document.getElementById('task-screen').classList.add('hidden');
+        
+        document.getElementById('currentPlayerName').textContent = data.current_player_name || '...';
+        
+        const votes = data.votes || {};
+        const truthCount = Object.values(votes).filter(v => v === 'truth').length;
+        const dareCount = Object.values(votes).filter(v => v === 'dare').length;
+        
+        document.getElementById('truthVotes').textContent = truthCount;
+        document.getElementById('dareVotes').textContent = dareCount;
+        
+        updateTDPlayersStatus(data);
+    } else if (data.state === 'task' && data.show_task) {
+        document.getElementById('voting-screen').classList.add('hidden');
+        document.getElementById('task-screen').classList.remove('hidden');
+        
+        document.getElementById('taskPlayerName').textContent = data.current_player_name || '';
+        document.getElementById('taskText').textContent = 
+            (data.task_type === 'truth' ? '🗣 ПРАВДА: ' : '💥 ДЕЙСТВИЕ: ') + data.current_task;
+        
+        updateTDPlayersStatus(data);
+    }
+}
+
+function updateTDPlayersStatus(data) {
+    const players = data.players || {};
+    const votes = data.votes || {};
+    const statusDiv = document.getElementById('tdPlayersStatus');
+    
+    statusDiv.innerHTML = Object.entries(players).map(([id, p]) => {
+        const isCurrent = id === data.current_player_id;
+        const voted = votes[id] !== undefined;
+        
+        let status = '';
+        if (isCurrent) status = '🎯 Выбран';
+        else if (voted) status = '✅ Проголосовал';
+        else status = '⏳ Думает...';
+        
+        return `
+            <div class="player-status-card ${voted || isCurrent ? 'answered' : 'not-answered'}">
+                <div class="status-dot ${voted || isCurrent ? 'done' : 'waiting'}"></div>
+                <span>${p.name}</span>
+                <span style="font-size:12px;opacity:0.6;margin-left:8px;">${status}</span>
+            </div>`;
+    }).join('');
+}
+
+function updateTDScores(data) {
+    const scores = data.scores || {};
+    const players = data.players || {};
+    const sorted = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+    const medals = ['🥇','🥈','🥉'];
+    document.getElementById('tdScoresDisplay').innerHTML = sorted
+        .map(([id,s],i) => {
+            const p = players[id];
+            return `<div class="score-card ${i===0?'top':''}">
+                <div class="score-name">${medals[i]||'🏅'} ${p?p.name:'Игрок'}</div>
+                <div class="score-value">${s}</div></div>`;
+        }).join('');
+}
+
+function updateQuizScreen() {
     if (!roomCode) return;
     fetch('/api/state/' + roomCode)
         .then(r => r.json())
@@ -542,7 +773,12 @@ function updateGameState() {
             
             updatePlayerStatus(data);
             updateScores(data);
-        });
+        })
+        const newCount = data.answers_count || 0;
+        if (newCount > lastAnswerCount) playCorrect();
+        lastAnswerCount = newCount;
+    updatePlayerStatus(data);
+    updateScores(data);;
 }
 
 function showQuestion() {
@@ -644,6 +880,9 @@ function updateScores(data) {
                 <div class="score-value">${s}</div></div>`;
         }).join('');
 }
+
+
+
 
 function showFinalScreen(data) {
     playWinner();

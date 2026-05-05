@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🎮 ИГРИЩЕ — Финальный сервер
+🎮 ИГРИЩЕ — Сервер v2.0
 """
 
 import http.server
@@ -54,6 +54,9 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
         elif self.path == '/api/games':
             gl = {}
             for gid, g in GAMES.items():
+                q_count = len(g.get('questions', []))
+                if q_count == 0:
+                    q_count = g.get('rounds', 5)
                 gl[gid] = {
                     "id": g["id"],
                     "name": g["name"],
@@ -61,7 +64,7 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
                     "color": g["color"],
                     "icon": g.get("icon", "🎮"),
                     "icon_image": g.get("icon_image", ""),
-                    "questions_count": len(g.get("questions", []))
+                    "questions_count": q_count
                 }
             self._json(gl)
             return
@@ -73,36 +76,46 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
             if gid not in GAMES:
                 self._json({'error': 'Игра не найдена'}, 400)
                 return
+            
             game = GAMES[gid]
             code = ucode()
-            qs = random.sample(game['questions'], len(game['questions']))
-            rooms[code] = {
+            
+            room = {
                 'game_id': gid,
                 'game_name': game['name'],
                 'game_color': game['color'],
                 'game_icon': game.get('icon', '🎮'),
                 'game_icon_image': game.get('icon_image', ''),
-                'questions': qs,
-                'points': game.get('points_per_question', 100),
                 'players': {},
                 'state': 'lobby',
                 'current_question': -1,
                 'answers': {},
                 'scores': {},
                 'question_start_time': 0,
-                'created_at': time.time()
+                'created_at': time.time(),
+                'player_order': [],
+                'current_player_index': 0,
+                'votes': {},
+                'round': 0,
+                'total_rounds': game.get('rounds', 5)
             }
+            
+            if gid == 'quiz':
+                qs = random.sample(game['questions'], len(game['questions']))
+                room['questions'] = qs
+                room['points'] = game.get('points_per_question', 100)
+            elif gid == 'truth_dare':
+                room['truth_pool'] = game.get('truth_pool', [])
+                room['dare_pool'] = game.get('dare_pool', [])
+                room['points'] = game.get('points_per_question', 50)
+            elif gid == 'draw':
+                room['questions'] = game.get('questions', [])
+                room['points'] = game.get('points_per_question', 200)
+                room['player_themes'] = {}
+            
+            rooms[code] = room
             print(f'✅ Комната {code} — {game["name"]}')
-            self._json({
-                'code': code,
-                'game': {
-                    'name': game['name'],
-                    'color': game['color'],
-                    'icon': game.get('icon', '🎮'),
-                    'icon_image': game.get('icon_image', ''),
-                    'questions_count': len(qs)
-                }
-            })
+            self._json({'code': code, 'game': {'name': game['name'], 'color': game['color'], 'icon': game.get('icon', '🎮'), 'icon_image': game.get('icon_image', '')}})
             return
         
         elif self.path.startswith('/api/state/'):
@@ -110,39 +123,57 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
             if code not in rooms:
                 self._json({'error': 'Комната не найдена'}, 404)
                 return
+            
             room = rooms[code]
-            q_idx = room['current_question']
-            current_q = None
-            q_time_left = 0
+            gid = room['game_id']
             
-            if q_idx >= 0 and q_idx < len(room['questions']):
-                q = room['questions'][q_idx]
-                current_q = {
-                    'text': q['text'],
-                    'answers': q['answers'],
-                    'time': q.get('time', 30)
-                }
-                if room.get('question_start_time'):
-                    elapsed = time.time() - room['question_start_time']
-                    q_time_left = max(0, int(q.get('time', 30) - elapsed))
-                else:
-                    q_time_left = q.get('time', 30)
-            
-            self._json({
+            response = {
                 'state': room['state'],
                 'game_name': room['game_name'],
                 'game_color': room['game_color'],
                 'game_icon': room.get('game_icon', '🎮'),
                 'game_icon_image': room.get('game_icon_image', ''),
+                'game_type': gid,
                 'players': room['players'],
-                'current_question': current_q,
-                'question_index': q_idx,
-                'total_questions': len(room['questions']),
                 'scores': room['scores'],
-                'answers_count': len(room['answers']),
-                'question_time_left': q_time_left,
-                'answered_players': list(room['answers'].keys())
-            })
+                'round': room.get('round', 0),
+                'total_rounds': room.get('total_rounds', 5)
+            }
+            
+            if gid == 'quiz':
+                q_idx = room['current_question']
+                current_q = None
+                q_time_left = 0
+                if q_idx >= 0 and q_idx < len(room.get('questions', [])):
+                    q = room['questions'][q_idx]
+                    current_q = {'text': q['text'], 'answers': q['answers'], 'time': q.get('time', 30)}
+                    if room.get('question_start_time'):
+                        elapsed = time.time() - room['question_start_time']
+                        q_time_left = max(0, int(q.get('time', 30) - elapsed))
+                    else:
+                        q_time_left = q.get('time', 30)
+                response['current_question'] = current_q
+                response['question_index'] = q_idx
+                response['total_questions'] = len(room.get('questions', []))
+                response['question_time_left'] = q_time_left
+                response['answered_players'] = list(room['answers'].keys())
+                response['answers_count'] = len(room['answers'])
+            
+            elif gid == 'truth_dare':
+                player_order = room.get('player_order', [])
+                cp_index = room.get('current_player_index', 0)
+                if player_order and cp_index < len(player_order):
+                    response['current_player_id'] = player_order[cp_index]
+                    response['current_player_name'] = room['players'].get(player_order[cp_index], {}).get('name', '')
+                response['votes'] = room.get('votes', {})
+                response['vote_result'] = room.get('vote_result', '')
+                response['current_task'] = room.get('current_task', '')
+                response['task_type'] = room.get('task_type', '')
+                response['show_task'] = room.get('show_task', False)
+                response['votes_count'] = len(room.get('votes', {}))
+                response['total_voters'] = max(0, len(room['players']) - 1)
+            
+            self._json(response)
             return
         
         return super().do_GET()
@@ -168,7 +199,7 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
             room['players'][pid] = {'name': name}
             room['scores'][pid] = 0
             print(f'👤 {name} → {code}')
-            self._json({'player_id': pid, 'name': name})
+            self._json({'player_id': pid, 'name': name, 'game_type': room['game_id']})
             return
         
         elif self.path == '/api/start':
@@ -178,24 +209,79 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
                 if len(room['players']) == 0:
                     self._json({'error': 'Нужен хотя бы 1 игрок'}, 400)
                     return
-                room['state'] = 'playing'
-                room['current_question'] = 0
-                room['question_start_time'] = time.time()
+                gid = room['game_id']
+                if gid == 'quiz':
+                    room['state'] = 'playing'
+                    room['current_question'] = 0
+                    room['question_start_time'] = time.time()
+                elif gid == 'truth_dare':
+                    player_ids = list(room['players'].keys())
+                    random.shuffle(player_ids)
+                    room['player_order'] = player_ids
+                    room['current_player_index'] = 0
+                    room['round'] = 0
+                    room['state'] = 'voting'
+                    room['votes'] = {}
+                    room['vote_result'] = ''
+                    room['show_task'] = False
+                    room['current_task'] = ''
+                    room['task_type'] = ''
                 print(f'🚀 Игра в {code} началась!')
-            self._json({'ok': True})
+            self._json({'ok': True, 'game_type': rooms[code]['game_id']})
             return
         
-        elif self.path == '/api/next':
+        elif self.path == '/api/vote':
             code = data.get('code', '').upper()
-            if code in rooms:
+            pid = data.get('player_id', '')
+            vote = data.get('vote', '')
+            if code in rooms and pid in rooms[code]['players']:
                 room = rooms[code]
-                room['current_question'] += 1
-                room['answers'] = {}
-                room['question_start_time'] = time.time()
-                if room['current_question'] >= len(room['questions']):
+                cp_id = room['player_order'][room['current_player_index']]
+                if pid == cp_id:
+                    self._json({'error': 'Ты выбранный игрок'}, 400)
+                    return
+                room['votes'][pid] = vote
+                total_voters = len(room['players']) - 1
+                if len(room['votes']) >= total_voters:
+                    truth_count = sum(1 for v in room['votes'].values() if v == 'truth')
+                    dare_count = sum(1 for v in room['votes'].values() if v == 'dare')
+                    if truth_count >= dare_count:
+                        room['vote_result'] = 'truth'
+                        room['current_task'] = random.choice(room['truth_pool'])
+                        room['task_type'] = 'truth'
+                    else:
+                        room['vote_result'] = 'dare'
+                        room['current_task'] = random.choice(room['dare_pool'])
+                        room['task_type'] = 'dare'
+                    room['show_task'] = True
+                    room['state'] = 'task'
+                self._json({'ok': True})
+                return
+            self._json({'error': 'Ошибка'}, 400)
+            return
+        
+        elif self.path == '/api/task_done':
+            code = data.get('code', '').upper()
+            pid = data.get('player_id', '')
+            if code in rooms and pid in rooms[code]['players']:
+                room = rooms[code]
+                cp_id = room['player_order'][room['current_player_index']]
+                if pid != cp_id:
+                    self._json({'error': 'Не твой ход'}, 400)
+                    return
+                room['scores'][pid] += room.get('points', 50)
+                room['current_player_index'] += 1
+                room['round'] += 1
+                if room['round'] >= room['total_rounds'] or room['current_player_index'] >= len(room['player_order']):
                     room['state'] = 'finished'
-                    print(f'🏁 Игра в {code} завершена!')
-            self._json({'ok': True})
+                else:
+                    room['state'] = 'voting'
+                    room['votes'] = {}
+                    room['vote_result'] = ''
+                    room['show_task'] = False
+                self._json({'ok': True})
+                return
+            self._json({'error': 'Ошибка'}, 400)
             return
         
         elif self.path == '/api/answer':
@@ -204,28 +290,47 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
             answer = data.get('answer', 0)
             if code in rooms and pid in rooms[code]['players']:
                 room = rooms[code]
-                q_idx = room['current_question']
-                if 0 <= q_idx < len(room['questions']):
-                    is_correct = answer == room['questions'][q_idx]['correct']
-                    if is_correct:
-                        room['scores'][pid] += room.get('points', 100)
-                    room['answers'][pid] = answer
-                    self._json({'correct': is_correct, 'score': room['scores'][pid]})
-                    return
+                if room['game_id'] == 'quiz':
+                    q_idx = room['current_question']
+                    if 0 <= q_idx < len(room.get('questions', [])):
+                        is_correct = answer == room['questions'][q_idx]['correct']
+                        if is_correct:
+                            room['scores'][pid] += room.get('points', 100)
+                        room['answers'][pid] = answer
+                        self._json({'correct': is_correct, 'score': room['scores'][pid]})
+                        return
             self._json({'error': 'Ошибка'}, 400)
+            return
+        
+        elif self.path == '/api/next':
+            code = data.get('code', '').upper()
+            if code in rooms:
+                room = rooms[code]
+                if room['game_id'] == 'quiz':
+                    room['current_question'] += 1
+                    room['answers'] = {}
+                    room['question_start_time'] = time.time()
+                    if room['current_question'] >= len(room.get('questions', [])):
+                        room['state'] = 'finished'
+            self._json({'ok': True})
             return
         
         elif self.path == '/api/reset':
             code = data.get('code', '').upper()
             if code in rooms:
-                game = GAMES[rooms[code]['game_id']]
-                rooms[code]['questions'] = random.sample(game['questions'], len(game['questions']))
-                rooms[code]['state'] = 'lobby'
-                rooms[code]['current_question'] = -1
-                rooms[code]['answers'] = {}
-                rooms[code]['scores'] = {pid: 0 for pid in rooms[code]['players']}
-                rooms[code]['question_start_time'] = 0
-                print(f'🔄 Комната {code} сброшена')
+                room = rooms[code]
+                game = GAMES[room['game_id']]
+                if room['game_id'] == 'quiz':
+                    room['questions'] = random.sample(game['questions'], len(game['questions']))
+                room['state'] = 'lobby'
+                room['current_question'] = -1
+                room['answers'] = {}
+                room['votes'] = {}
+                room['scores'] = {pid: 0 for pid in room['players']}
+                room['question_start_time'] = 0
+                room['round'] = 0
+                room['current_player_index'] = 0
+                room['show_task'] = False
             self._json({'ok': True})
             return
         
@@ -251,12 +356,14 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
 def main():
     port = 8000
     print('=' * 50)
-    print('🎮  И Г Р И Щ Е')
+    print('🎮  И Г Р И Щ Е  v2.0')
     print('=' * 50)
     print(f'📺  ТВ:  http://localhost:{port}/tv')
     print(f'📱  Тел: http://localhost:{port}/player')
     print('=' * 50)
     print(f'📦 Игр: {len(GAMES)}')
+    for gid, g in GAMES.items():
+        print(f'   {g.get("icon","")} {g["name"]}')
     print('=' * 50)
     print('🚀 Запуск...')
     httpd = http.server.HTTPServer(('0.0.0.0', port), GameServer)
