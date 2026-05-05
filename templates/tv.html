@@ -768,6 +768,24 @@ function playLooped() {
     lobbySource.start(0);
 }
 
+function autoNext() {
+    playAutoNext();
+    clearInterval(currentTimer);
+    clearTimeout(autoNextTimer);
+    lastAnswerCount = 0;  // ← уже есть, но проверь
+    
+    document.getElementById('timer').textContent = '→ Дальше...';
+    document.getElementById('timer').classList.add('auto-next');
+    
+    setTimeout(() => {
+        fetch('/api/next', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:roomCode})})
+        .then(() => {
+            document.getElementById('timer').classList.remove('auto-next');
+            showQuestion();
+        });
+    }, 1500);
+}
+
 function stopLobbyMusic() { if (lobbySource) { try { lobbySource.stop(0); } catch(e) {} lobbySource = null; } }
 function playSound(n, v=0.5) { try { const a = new Audio('/static/sounds/'+n+'.mp3'); a.volume=v; a.play().catch(()=>{}); } catch(e) {} }
 function playPlayerJoin() { playSound('connection', 0.4); }
@@ -775,6 +793,8 @@ function playCorrect() { playSound('approve', 0.5); }
 function playAutoNext() { playSound('vibor', 0.6); }
 function playWinner() { if (!winnerPlayed) { winnerPlayed = true; playSound('winner', 0.7); } }
 function playGameStart() { stopLobbyMusic(); winnerPlayed = false; playSound('fon', 0.6); }
+
+
 </script>
 
 
