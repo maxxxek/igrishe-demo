@@ -224,27 +224,111 @@
             document.getElementById('questionArea').classList.remove('hidden');
             document.getElementById('waitingArea').classList.add('hidden');
             document.getElementById('questionText').textContent = question.text;
-            document.getElementById('answersGrid').innerHTML = question.answers.map((a,i)=>`<button class="answer-btn" onclick="submitAnswer(${i},this)">${a}</button>`).join('');
-            let timeLeft = question.time || 30;
-            const timerEl = document.getElementById('timer');
-            timerEl.textContent = '⏱ '+timeLeft; timerEl.classList.remove('warning');
-            clearInterval(currentTimer);
-            currentTimer = setInterval(()=>{timeLeft--;timerEl.textContent='⏱ '+timeLeft;if(timeLeft<=5)timerEl.classList.add('warning');if(timeLeft<=0){clearInterval(currentTimer);timerEl.textContent='⏰ Время!';}},1000);
+
+            // Включаем кнопки
+            document.getElementById('answersGrid').innerHTML = question.answers
+                .map((a, i) => `
+                    <button class="answer-btn" onclick="submitAnswer(${i}, this)" 
+                            style="opacity:1;pointer-events:auto;border-color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.7);">
+                        ${a}
+                    </button>
+                `).join('');
+                
+            // Синхронизированный таймер с сервера
+            startSyncedTimer();
         }
         
-        function submitAnswer(answerIndex, button) {
-            if(!roomCode||!playerId||hasAnswered)return;
-            hasAnswered=true;
-            document.querySelectorAll('.answer-btn').forEach(b=>{b.classList.add('answered');b.disabled=true;});
-            button.classList.add('selected-answer');
-            fetch('/api/answer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:roomCode,player_id:playerId,answer:answerIndex})})
-            .then(r=>r.json()).then(data=>{
-                if(data.score!==undefined){const s=document.getElementById('scoreDisplay');s.textContent=data.score;s.style.transform='scale(1.3)';setTimeout(()=>s.style.transform='scale(1)',200);}
-                if(data.correct){button.classList.add('correct-choice');document.getElementById('answerStatus').innerHTML='<span class="status-badge status-correct">✅ Верно!</span>';}
-                else {button.classList.add('wrong-choice');document.getElementById('answerStatus').innerHTML='<span class="status-badge status-wrong">❌ Мимо</span>';}
-            });
-            clearInterval(currentTimer); document.getElementById('timer').textContent='✅ Отправлен';
+        function startSyncedTimer() {
+        const timerEl = document.getElementById('timer');
+        clearInterval(currentTimer);
+
+            function updateTimer() {
+                if (!roomCode) return;
+
+                fetch('/api/state/' + roomCode)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.current_question) return;
+
+                        const timeLeft = data.question_time_left || 0;
+
+                        if (timeLeft <= 0) {
+                            timerEl.textContent = '⏰ Время!';
+                            timerEl.classList.add('warning');
+                        } else {
+                            timerEl.textContent = '⏱ ' + timeLeft;
+                            if (timeLeft <= 5) {
+                                timerEl.classList.add('warning');
+                            } else {
+                                timerEl.classList.remove('warning');
+                            }
+                        }
+                    })
+                    .catch(() => {});
+            }
+
+            updateTimer();
+            currentTimer = setInterval(updateTimer, 1000);
         }
+
+        function submitAnswer(answerIndex, button) {
+    // 🔒 Блокировка повторных ответов
+    if (!roomCode || !playerId || hasAnswered) return;
+    hasAnswered = true;
+    
+    // Блокируем ВСЕ кнопки
+    document.querySelectorAll('.answer-btn').forEach(b => {
+        b.classList.add('answered');
+        b.disabled = true;
+        b.style.opacity = '0.45';
+        b.style.pointerEvents = 'none';
+    });
+    
+    // Подсвечиваем выбранную
+    button.classList.add('selected-answer');
+    button.style.opacity = '1';
+    
+    fetch('/api/answer', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code: roomCode, player_id: playerId, answer: answerIndex})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            // Ошибка — разблокируем
+            hasAnswered = false;
+            document.querySelectorAll('.answer-btn').forEach(b => {
+                b.disabled = false;
+                b.style.opacity = '1';
+                b.style.pointerEvents = 'auto';
+            });
+            button.classList.remove('selected-answer');
+            return;
+        }
+        
+        if (data.score !== undefined) {
+            const scoreEl = document.getElementById('scoreDisplay');
+            scoreEl.textContent = data.score;
+            scoreEl.style.transform = 'scale(1.3)';
+            setTimeout(() => scoreEl.style.transform = 'scale(1)', 200);
+        }
+        
+        if (data.correct) {
+            button.classList.add('correct-choice');
+            document.getElementById('answerStatus').innerHTML = 
+                '<span class="status-badge status-correct">✅ Верно!</span>';
+        } else {
+            button.classList.add('wrong-choice');
+            document.getElementById('answerStatus').innerHTML = 
+                '<span class="status-badge status-wrong">❌ Мимо</span>';
+        }
+        
+        // Останавливаем таймер на клиенте
+        clearInterval(currentTimer);
+        document.getElementById('timer').textContent = '✅ Отправлен';
+    });
+}
         
         document.getElementById('codeInput').addEventListener('keydown',e=>{if(e.key==='Enter')joinGame();});
         document.getElementById('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('codeInput').focus();});

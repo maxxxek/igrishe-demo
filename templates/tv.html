@@ -93,17 +93,31 @@
         }
 
         .logo {
-            font-size: 80px;
-            font-weight: 900;
-            text-align: center;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -2px;
-            margin-bottom: 10px;
-            filter: drop-shadow(0 4px 12px rgba(124, 58, 237, 0.4));
-        }
+    font-size: 80px;
+    font-weight: 900;
+    text-align: center;
+    letter-spacing: -2px;
+    margin-bottom: 10px;
+    /* Градиент только для текста "ИГРИЩЕ", не для содержимого */
+}
+
+/* Отдельный класс для градиентного текста */
+.logo-gradient {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 4px 12px rgba(124, 58, 237, 0.4));
+}
+
+/* Лобби — название игры без градиента */
+#lobbyGameName {
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: var(--text) !important;
+    background-clip: unset !important;
+    color: var(--text);
+}
 
         .subtitle {
             text-align: center;
@@ -150,8 +164,21 @@
             border-radius: 20px;
             padding: 12px;
         }
-        .game-icon-img { width: 100%; height: 100%; object-fit: contain; }
-        .game-icon-emoji { font-size: 48px; line-height: 1; }
+        .game-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: none !important;
+}
+
+.game-icon-emoji {
+    font-size: 48px;
+    line-height: 1;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: unset !important;
+    background-clip: unset !important;
+}
         .game-name { font-size: 26px; font-weight: 900; margin-bottom: 6px; }
         .game-desc { font-size: 14px; opacity: 0.6; }
         .game-badge {
@@ -220,19 +247,40 @@
 
         /* ====== ИГРОВОЙ ЭКРАН ====== */
         .game-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 14px;
-            margin-bottom: 10px;
-        }
-        .game-header-icon {
-            width: 42px; height: 42px;
-            object-fit: contain;
-            filter: none !important;
-        }
-        .game-header-emoji { font-size: 36px; }
-        .game-header-title { font-size: 28px; font-weight: 900; opacity: 0.8; }
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 10px;
+}
+
+.game-header-icon {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    filter: none !important;  /* ← важно! */
+    -webkit-filter: none !important;
+}
+
+.game-header-emoji {
+    font-size: 36px;
+    /* Убираем градиент */
+    background: none;
+    -webkit-background-clip: unset;
+    -webkit-text-fill-color: unset;
+    background-clip: unset;
+}
+
+.game-header-title {
+    font-size: 28px;
+    font-weight: 900;
+    opacity: 0.8;
+    /* Градиент ТОЛЬКО для текста названия */
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
 
         .question-counter { text-align: center; opacity: 0.5; font-size: 16px; margin-bottom: 15px; letter-spacing: 2px; }
 
@@ -350,7 +398,7 @@
         
         <!-- ВЫБОР ИГРЫ -->
         <div id="game-select" class="glass-card">
-            <div class="logo">ИГРИЩЕ</div>
+            <div class="logo logo-gradient">ИГРИЩЕ</div>
             <div class="subtitle">игра для компании</div>
             <div class="section-title">Выбери игру:</div>
             <div class="games-grid" id="gamesList"><div class="empty-state">Загрузка игр...</div></div>
@@ -460,21 +508,17 @@ fetch('/api/games')
     .then(r => r.json())
     .then(games => {
         const grid = document.getElementById('gamesList');
-        if (Object.keys(games).length === 0) {
-            grid.innerHTML = '<div class="empty-state">Нет доступных игр</div>';
-            return;
-        }
         grid.innerHTML = Object.entries(games).map(([id, game]) => {
             const hasImage = game.icon_image && game.icon_image.trim() !== '';
             const iconHTML = hasImage 
-                ? `<img src="${game.icon_image}" class="game-icon-img" alt="" onerror="this.parentElement.innerHTML='<span class=\\'game-icon-emoji\\'>${game.icon || '🎮'}</span>'">`
+                ? `<img src="${game.icon_image}" class="game-icon-img" alt="">`
                 : `<span class="game-icon-emoji">${game.icon || '🎮'}</span>`;
             return `
                 <div class="game-card" data-game="${id}" onclick="selectGame('${id}')">
                     <div class="game-icon-wrap">${iconHTML}</div>
                     <div class="game-name" style="color:${game.color}">${game.name}</div>
                     <div class="game-desc">${game.description}</div>
-                    <div class="game-badge">${game.questions_count} ${game.questions_count > 10 ? 'вопросов' : 'раундов'}</div>
+                    <div class="game-badge">${game.questions_count} вопросов</div>
                 </div>`;
         }).join('');
     });
@@ -600,6 +644,10 @@ function createRoom() {
             document.getElementById('lobbyGameName').textContent = data.game.name;
             document.getElementById('roomCode').textContent = roomCode;
             document.getElementById('serverUrl').textContent = window.location.host + '/player';
+            
+            // 🔊 Запускаем фоновую музыку
+            playLobbyMusic();
+            
             lastPlayerCount = 0;
             updateLobby();
             lobbyInterval = setInterval(updateLobby, 2000);
@@ -640,7 +688,7 @@ function showGameScreen(data) {
     document.getElementById('lobby').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
     
-    // Иконка игры
+    // Иконка игры (НЕ ЗАЛИТАЯ!)
     if (data.game_icon_image) {
         document.getElementById('gameIconImg').src = data.game_icon_image;
         document.getElementById('gameIconImg').style.display = 'inline-block';
@@ -648,7 +696,10 @@ function showGameScreen(data) {
     } else {
         document.getElementById('gameIconImg').style.display = 'none';
         document.getElementById('gameIconEmoji').textContent = data.game_icon || '🎮';
-        document.getElementById('gameIconEmoji').style.display = 'inline-block';
+        document.getElementById('gameIconEmoji').style.display = 'inline';
+        document.getElementById('gameIconEmoji').style.background = 'none';
+        document.getElementById('gameIconEmoji').style.webkitBackgroundClip = 'unset';
+        document.getElementById('gameIconEmoji').style.webkitTextFillColor = 'currentColor';
     }
     document.getElementById('gameTitle').textContent = data.game_name || '';
     
@@ -925,6 +976,7 @@ function showFinalScreen(data) {
 }
 
 function resetToMenu() {
+    stopLobbyMusic();
     clearInterval(currentTimer);
     clearTimeout(autoNextTimer);
     clearInterval(lobbyInterval);
@@ -942,27 +994,95 @@ function resetToMenu() {
 }
 </script>
 
-        <script>
-    // ========== ЗВУКИ ==========
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    let audioCtx = null;
-    function initAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
-    function beep(freq, dur, type='sine', vol=0.3) {
-        initAudio();
-        const o = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        o.type = type; o.frequency.value = freq;
-        g.gain.value = vol;
-        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
-        o.connect(g); g.connect(audioCtx.destination);
-        o.start(); o.stop(audioCtx.currentTime + dur);
+    <script>
+// ========== ЗВУКИ ИГРИЩЕ ==========
+let lobbyMusic = null;
+
+function playSound(name, loop = false) {
+    try {
+        const audio = new Audio('/static/sounds/' + name + '.mp3');
+        audio.volume = 0.4;
+        if (loop) {
+            audio.loop = true;
+            lobbyMusic = audio;
+        }
+        audio.play().catch(() => {});
+        return audio;
+    } catch(e) {
+        return null;
     }
-    function playPlayerJoin() { beep(660, 0.1, 'sine', 0.2); setTimeout(() => beep(880, 0.15, 'sine', 0.2), 100); }
-    function playGameStart() { beep(440, 0.15, 'triangle', 0.3); setTimeout(() => beep(554, 0.15, 'triangle', 0.3), 150); setTimeout(() => beep(660, 0.15, 'triangle', 0.3), 300); setTimeout(() => beep(880, 0.4, 'triangle', 0.3), 450); }
-    function playCorrect() { beep(523, 0.15, 'sine', 0.3); setTimeout(() => beep(659, 0.15, 'sine', 0.3), 150); setTimeout(() => beep(784, 0.3, 'sine', 0.3), 300); }
-    function playWinner() { [523, 659, 784, 1047].forEach((f,i) => setTimeout(() => beep(f, 0.3, 'sine', 0.25), i*200)); }
-    function playAutoNext() { beep(440, 0.1, 'sine', 0.15); setTimeout(() => beep(440, 0.1, 'sine', 0.15), 200); }
-    </script>
+}
+
+function stopLobbyMusic() {
+    if (lobbyMusic) {
+        lobbyMusic.pause();
+        lobbyMusic.currentTime = 0;
+        lobbyMusic = null;
+    }
+}
+
+// connection.mp3 → вход игрока
+function playPlayerJoin() { playSound('connection'); }
+
+// fon.mp3 → фоновая музыка в лобби (зациклена)
+let lobbyAudioCtx = null;
+let lobbySource = null;
+let lobbyBuffer = null;
+
+async function playLobbyMusic() {
+    try {
+        // Создаём аудиоконтекст
+        if (!lobbyAudioCtx) {
+            lobbyAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        // Загружаем файл
+        const response = await fetch('/static/sounds/fon.mp3');
+        const arrayBuffer = await response.arrayBuffer();
+        lobbyBuffer = await lobbyAudioCtx.decodeAudioData(arrayBuffer);
+        
+        // Запускаем бесшовный цикл
+        playLooped();
+    } catch(e) {
+        console.log('Музыка не загрузилась:', e);
+    }
+}
+
+function playLooped() {
+    if (!lobbyBuffer || !lobbyAudioCtx) return;
+    
+    lobbySource = lobbyAudioCtx.createBufferSource();
+    lobbySource.buffer = lobbyBuffer;
+    lobbySource.loop = true;  // ← Web Audio API делает БЕСШОВНЫЙ цикл
+    lobbySource.connect(lobbyAudioCtx.destination);
+    lobbySource.start(0);
+}
+
+function stopLobbyMusic() {
+    if (lobbySource) {
+        lobbySource.stop(0);
+        lobbySource = null;
+    }
+}
+
+// approve.mp3 → правильный ответ
+function playCorrect() { playSound('approve'); }
+
+// wrong.mp3 → неправильный ответ
+function playWrong() { playSound('wrong'); }
+
+// vibor.mp3 → конец раунда
+function playAutoNext() { playSound('vibor'); }
+
+// winner.mp3 → финал
+function playWinner() { playSound('winner'); }
+
+// fon.mp3 → старт игры (коротко)
+function playGameStart() {
+    stopLobbyMusic();
+    playSound('fon');
+}
+</script>
 
 
 
