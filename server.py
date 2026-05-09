@@ -46,7 +46,9 @@ def ucode():
 class GameServer(http.server.SimpleHTTPRequestHandler):
     
     def do_GET(self):
-        if self.path == '/' or self.path == '/tv':
+        if self.path == '/' or self.path == '/hello':
+            self.path = '/hello.html'
+        elif self.path == '/tv':
             self.path = '/templates/tv.html'
         elif self.path == '/player':
             self.path = '/templates/player.html'
@@ -70,16 +72,22 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
             return
         
         elif self.path.startswith('/api/create'):
+            # Определяем игру (по умолчанию quiz)
             gid = 'quiz'
             if '?game=' in self.path:
-                gid = self.path.split('?game=')[1]
+                params = self.path.split('?')[1]
+                for param in params.split('&'):
+                    if param.startswith('game='):
+                        gid = param.split('=')[1]
+
             if gid not in GAMES:
                 self._json({'error': 'Игра не найдена'}, 400)
                 return
-            
+
             game = GAMES[gid]
             code = ucode()
-            
+
+            # Базовая структура комнаты
             room = {
                 'game_id': gid,
                 'game_name': game['name'],
@@ -99,6 +107,39 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
                 'round': 0,
                 'total_rounds': game.get('rounds', 5)
             }
+
+            # Настройки для конкретных игр
+            if gid == 'quiz':
+                qs = random.sample(game['questions'], len(game['questions']))
+                room['questions'] = qs
+                room['points'] = game.get('points_per_question', 100)
+
+            elif gid == 'truth_dare':
+                room['truth_pool'] = game.get('truth_pool', [])
+                room['dare_pool'] = game.get('dare_pool', [])
+                room['points'] = game.get('points_per_question', 50)
+                room['total_rounds'] = game.get('rounds', 5)
+
+            elif gid == 'draw':
+                room['questions'] = game.get('questions', [])
+                room['points'] = game.get('points_per_question', 200)
+                room['player_themes'] = {}
+
+            rooms[code] = room
+
+            print(f'✅ Комната {code} — {game["name"]}')
+
+            self._json({
+                'code': code,
+                'game': {
+                    'name': game['name'],
+                    'color': game['color'],
+                    'icon': game.get('icon', '🎮'),
+                    'icon_image': game.get('icon_image', ''),
+                    'type': gid
+                }
+            })
+            return
             
             if gid == 'quiz':
                 qs = random.sample(game['questions'], len(game['questions']))
@@ -375,6 +416,7 @@ def main():
     print('=' * 50)
     print('🎮  И Г Р И Щ Е  v2.0')
     print('=' * 50)
+    print(f'😊  Стартовая: http://localhost:{port}/hello')
     print(f'📺  ТВ:  http://localhost:{port}/tv')
     print(f'📱  Тел: http://localhost:{port}/player')
     print('=' * 50)
